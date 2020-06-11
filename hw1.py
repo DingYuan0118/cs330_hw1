@@ -1,124 +1,95 @@
 import numpy as np
-import os
 import random
 import tensorflow as tf
-from scipy import misc
+from load_data import DataGenerator
+from tensorflow.python.platform import flags
+from tensorflow.keras import layers
+
+FLAGS = flags.FLAGS
+
+flags.DEFINE_integer(
+    'num_classes', 5, 'number of classes used in classification (e.g. 5-way classification).')
+
+flags.DEFINE_integer('num_samples', 1,
+                     'number of examples used for inner gradient update (K for K-shot learning).')
+
+flags.DEFINE_integer('meta_batch_size', 16,
+                     'Number of N-way classification tasks per batch')
 
 
-def get_images(paths, labels, nb_samples=None, shuffle=True):
+def loss_function(preds, labels):
     """
-    Takes a set of character folders and labels and returns paths to image files
-    paired with labels.
+    Computes MANN loss
     Args:
-        paths: A list of character folders
-        labels: List or numpy array of same length as paths
-        nb_samples: Number of images to retrieve per character
+        preds: [B, K+1, N, N] network output
+        labels: [B, K+1, N, N] labels
     Returns:
-        List of (label, image_path) tuples
+        scalar loss
     """
-    if nb_samples is not None:
-        sampler = lambda x: random.sample(x, nb_samples)
-    else:
-        sampler = lambda x: x
-    images_labels = [(i, os.path.join(path, image))
-                     for i, path in zip(labels, paths)
-                     for image in sampler(os.listdir(path))]
-    if shuffle:
-        random.shuffle(images_labels)
-    return images_labels
+    #############################
+    #### YOUR CODE GOES HERE ####
+    pass
+    #############################
 
 
-def image_file_to_array(filename, dim_input):
-    """
-    Takes an image path and returns numpy array
-    Args:
-        filename: Image filename
-        dim_input: Flattened shape of image
-    Returns:
-        1 channel image
-    """
-    image = misc.imread(filename)
-    image = image.reshape([dim_input])
-    image = image.astype(np.float32) / 255.0
-    image = 1.0 - image
-    return image
+class MANN(tf.keras.Model):
 
-
-class DataGenerator(object):
-    """
-    Data Generator capable of generating batches of Omniglot data.
-    A "class" is considered a class of omniglot digits.
-    """
-
-    def __init__(self, num_classes, num_samples_per_class, config={}):
-        """
-        Args:
-            num_classes: Number of classes for classification (N-way)
-            num_samples_per_class: num samples to generate per class in one batch(K-shot)
-            batch_size: size of meta batch size (e.g. number of functions)
-        """
-        self.num_samples_per_class = num_samples_per_class
+    def __init__(self, num_classes, samples_per_class):
+        super(MANN, self).__init__()
         self.num_classes = num_classes
+        self.samples_per_class = samples_per_class
+        self.layer1 = tf.keras.layers.LSTM(128, return_sequences=True)
+        self.layer2 = tf.keras.layers.LSTM(num_classes, return_sequences=True)
 
-        data_folder = config.get('data_folder', '.\\omniglot_resized')
-        self.img_size = config.get('img_size', (28, 28))
-
-        self.dim_input = np.prod(self.img_size)
-        self.dim_output = self.num_classes
-
-        character_folders = [os.path.join(data_folder, family, character)
-                             for family in os.listdir(data_folder)
-                             if os.path.isdir(os.path.join(data_folder, family))
-                             for character in os.listdir(os.path.join(data_folder, family))
-                             if os.path.isdir(os.path.join(data_folder, family, character))]
-
-        random.seed(1)
-        random.shuffle(character_folders)
-        num_val = 100
-        num_train = 1100
-        self.metatrain_character_folders = character_folders[: num_train]
-        self.metaval_character_folders = character_folders[
-            num_train:num_train + num_val]
-        self.metatest_character_folders = character_folders[
-            num_train + num_val:]
-
-    def sample_batch(self, batch_type, batch_size):
+    def call(self, input_images, input_labels):
         """
-        Samples a batch for training, validation, or testing
+        MANN
         Args:
-            batch_type: train/val/test
+            input_images: [B, K+1, N, 784] flattened images
+            labels: [B, K+1, N, N] ground truth labels
         Returns:
-            A a tuple of (1) Image batch and (2) Label batch where
-            image batch has shape [B, K, N, 784] and label batch has shape [B, K, N, N]
-            where B is batch size, K is number of samples per class, N is number of classes 
-            N-way K-shot
+            [B, K+1, N, N] predictions
         """
-        if batch_type == "train":
-            folders = self.metatrain_character_folders
-        elif batch_type == "val":
-            folders = self.metaval_character_folders
-        else:
-            folders = self.metatest_character_folders
-
         #############################
         #### YOUR CODE GOES HERE ####
-        B = batch_size
-        K = self.num_samples_per_class
-        N = self.num_classes
-        image_batch = np.zeros([B*K*N, self.dim_input])
-        labels_batch = np.zeros([B*K*N, N])
-        index = 0
-        for i in range(B):
-            image_paths = random.sample(folders, N)
-            labels = list(np.eye(N))
-            image_labels = get_images(image_paths, labels, nb_samples=K)
-            for label , image_path in image_labels:
-                image_np = image_file_to_array(image_path, dim_input=self.dim_input)
-                image_batch[index] = image_np
-                labels_batch[index] = label
-                index += 1
-        all_image_batches = image_batch.reshape([B, K, N, self.dim_input])
-        all_label_batches = labels_batch.reshape([B, K, N, N])
+        pass
         #############################
+        return out
 
-        return all_image_batches, all_label_batches
+ims = tf.placeholder(tf.float32, shape=(
+    None, FLAGS.num_samples + 1, FLAGS.num_classes, 784))
+labels = tf.placeholder(tf.float32, shape=(
+    None, FLAGS.num_samples + 1, FLAGS.num_classes, FLAGS.num_classes))
+
+data_generator = DataGenerator(
+    FLAGS.num_classes, FLAGS.num_samples + 1)
+
+o = MANN(FLAGS.num_classes, FLAGS.num_samples + 1)
+out = o(ims, labels)
+
+loss = loss_function(out, labels)
+optim = tf.train.AdamOptimizer(0.001)
+optimizer_step = optim.minimize(loss)
+
+with tf.Session() as sess:
+    sess.run(tf.local_variables_initializer())
+    sess.run(tf.global_variables_initializer())
+
+    for step in range(50000):
+        i, l = data_generator.sample_batch('train', FLAGS.meta_batch_size)
+        feed = {ims: i.astype(np.float32), labels: l.astype(np.float32)}
+        _, ls = sess.run([optimizer_step, loss], feed)
+
+        if step % 100 == 0:
+            print("*" * 5 + "Iter " + str(step) + "*" * 5)
+            i, l = data_generator.sample_batch('test', 100)
+            feed = {ims: i.astype(np.float32),
+                    labels: l.astype(np.float32)}
+            pred, tls = sess.run([out, loss], feed)
+            print("Train Loss:", ls, "Test Loss:", tls)
+            pred = pred.reshape(
+                -1, FLAGS.num_samples + 1,
+                FLAGS.num_classes, FLAGS.num_classes)
+            pred = pred[:, -1, :, :].argmax(2)
+            l = l[:, -1, :, :].argmax(2)
+            print("Test Accuracy", (1.0 * (pred == l)).mean())
