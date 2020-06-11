@@ -53,14 +53,14 @@ class DataGenerator(object):
     def __init__(self, num_classes, num_samples_per_class, config={}):
         """
         Args:
-            num_classes: Number of classes for classification (K-way)
-            num_samples_per_class: num samples to generate per class in one batch
+            num_classes: Number of classes for classification (N-way)
+            num_samples_per_class: num samples to generate per class in one batch(K-shot)
             batch_size: size of meta batch size (e.g. number of functions)
         """
         self.num_samples_per_class = num_samples_per_class
         self.num_classes = num_classes
 
-        data_folder = config.get('data_folder', './omniglot_resized')
+        data_folder = config.get('data_folder', '.\\omniglot_resized')
         self.img_size = config.get('img_size', (28, 28))
 
         self.dim_input = np.prod(self.img_size)
@@ -91,6 +91,7 @@ class DataGenerator(object):
             A a tuple of (1) Image batch and (2) Label batch where
             image batch has shape [B, K, N, 784] and label batch has shape [B, K, N, N]
             where B is batch size, K is number of samples per class, N is number of classes
+            N-way K-shot
         """
         if batch_type == "train":
             folders = self.metatrain_character_folders
@@ -101,7 +102,23 @@ class DataGenerator(object):
 
         #############################
         #### YOUR CODE GOES HERE ####
-        pass
+        B = batch_size
+        K = self.num_samples_per_class
+        N = self.num_classes
+        image_batch = np.zeros([B*K*N, self.dim_input])
+        labels_batch = np.zeros([B*K*N, N])
+        index = 0
+        for i in range(B):
+            image_paths = random.sample(folders, N)
+            labels = list(np.eye(N))
+            image_labels = get_images(image_paths, labels, nb_samples=K)
+            for label , image_path in image_labels:
+                image_np = image_file_to_array(image_path, dim_input=self.dim_input)
+                image_batch[index] = image_np
+                labels_batch[index] = label
+                index += 1
+        all_image_batches = image_batch.reshape([B, K, N, self.dim_input])
+        all_label_batches = labels_batch.reshape([B, K, N, N])
         #############################
 
         return all_image_batches, all_label_batches
