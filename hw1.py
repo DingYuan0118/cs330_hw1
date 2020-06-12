@@ -1,3 +1,6 @@
+import warnings
+warnings.filterwarnings('ignore', category=FutureWarning) #消除Future Warning
+
 import numpy as np
 import random
 import tensorflow as tf
@@ -28,8 +31,10 @@ def loss_function(preds, labels):
     """
     #############################
     #### YOUR CODE GOES HERE ####
-    pass
+    loss = tf.nn.softmax_cross_entropy_with_logits(logits=preds[:, -1, :, :], labels=labels[:, -1, :, :])
+    loss = tf.reduce_mean(loss)
     #############################
+    return loss
 
 
 class MANN(tf.keras.Model):
@@ -52,7 +57,14 @@ class MANN(tf.keras.Model):
         """
         #############################
         #### YOUR CODE GOES HERE ####
-        pass
+        batch_size = input_images.shape[0]
+        input_dim = input_images.shape[-1]
+        input = tf.concat((input_images, input_labels), -1)
+        x = tf.reshape(input, [batch_size, self.samples_per_class*self.num_classes, input_dim + self.num_classes])
+        x = self.layer1(x)
+        x = self.layer2(x)
+        out = tf.reshape(x, [FLAGS.meta_batch_size, self.samples_per_class+1, self.num_classes, self.num_classes])
+
         #############################
         return out
 
