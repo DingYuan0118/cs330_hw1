@@ -1,5 +1,8 @@
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning) #消除Future Warning
+import datetime
+import io
+import matplotlib.pyplot as plt
 
 import numpy as np
 import random
@@ -7,6 +10,7 @@ import tensorflow as tf
 from load_data import DataGenerator
 from tensorflow.python.platform import flags
 from tensorflow.keras import layers
+
 
 FLAGS = flags.FLAGS
 
@@ -58,12 +62,14 @@ class MANN(tf.keras.Model):
         #############################
         #### YOUR CODE GOES HERE ####
         batch_size = input_images.shape[0]
+        zero_labels = tf.zeros_like(input_labels[:, -1:, :, :])
+        fixed_input_labels = tf.concat([input_labels[:, :-1, :, :], zero_labels], axis=1)
         input_dim = input_images.shape[-1]
-        input = tf.concat((input_images, input_labels), -1)
-        x = tf.reshape(input, [batch_size, self.samples_per_class*self.num_classes, input_dim + self.num_classes])
+        input = tf.concat((input_images, fixed_input_labels), -1)
+        x = tf.reshape(input, [-1, self.samples_per_class*self.num_classes, input_dim + self.num_classes])
         x = self.layer1(x)
         x = self.layer2(x)
-        out = tf.reshape(x, [FLAGS.meta_batch_size, self.samples_per_class+1, self.num_classes, self.num_classes])
+        out = tf.reshape(x, [-1 , self.samples_per_class, self.num_classes, self.num_classes])
 
         #############################
         return out
@@ -83,11 +89,15 @@ loss = loss_function(out, labels)
 optim = tf.train.AdamOptimizer(0.001)
 optimizer_step = optim.minimize(loss)
 
+#current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+
 with tf.Session() as sess:
+    #writer = tf.summary.FileWriter('logs\\{}'.format(current_time), sess.graph)
     sess.run(tf.local_variables_initializer())
     sess.run(tf.global_variables_initializer())
+    figure_train_loss, figure_test_loss , figure_acc , t= [], [], [], []
 
-    for step in range(50000):
+    for step in range(1000):
         i, l = data_generator.sample_batch('train', FLAGS.meta_batch_size)
         feed = {ims: i.astype(np.float32), labels: l.astype(np.float32)}
         _, ls = sess.run([optimizer_step, loss], feed)
@@ -105,3 +115,27 @@ with tf.Session() as sess:
             pred = pred[:, -1, :, :].argmax(2)
             l = l[:, -1, :, :].argmax(2)
             print("Test Accuracy", (1.0 * (pred == l)).mean())
+            #writer.add_summary(merged)
+            #figure_train_loss.append(ls)
+            #figure_test_loss.append(tls)
+            #figure_acc.append(1.0 * (pred == l).mean())
+            #t.append(step)
+    #fig = plt.figure()
+    #ax1 = fig.add_subplot(3, 1, 1)
+    #ax2 = fig.add_subplot(3, 1, 2)
+    #ax3 = fig.add_subplot(3, 1, 3)
+#
+    #ax1.plot(t, figure_train_loss)
+    #ax1.set_title("train loss")
+#
+    #ax2.plot(t, figure_test_loss)
+    #ax2.set_title("test loss")#
+#
+    #ax3.plot(t, figure_acc)
+    #ax3.set_title("acc")
+#
+    #fig.savefig('./test2.jpg')
+    #fig.show()
+
+
+
