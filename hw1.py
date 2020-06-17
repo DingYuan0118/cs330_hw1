@@ -4,6 +4,7 @@ import datetime
 import io
 import matplotlib.pyplot as plt
 
+import os
 import numpy as np
 import random
 import tensorflow as tf
@@ -116,26 +117,20 @@ with tf.Session() as sess:
             l = l[:, -1, :, :].argmax(2)
             print("Test Accuracy", (1.0 * (pred == l)).mean())
             #writer.add_summary(merged)
-            #figure_train_loss.append(ls)
-            #figure_test_loss.append(tls)
-            #figure_acc.append(1.0 * (pred == l).mean())
-            #t.append(step)
-    #fig = plt.figure()
-    #ax1 = fig.add_subplot(3, 1, 1)
-    #ax2 = fig.add_subplot(3, 1, 2)
-    #ax3 = fig.add_subplot(3, 1, 3)
-#
-    #ax1.plot(t, figure_train_loss)
-    #ax1.set_title("train loss")
-#
-    #ax2.plot(t, figure_test_loss)
-    #ax2.set_title("test loss")#
-#
-    #ax3.plot(t, figure_acc)
-    #ax3.set_title("acc")
-#
-    #fig.savefig('./test2.jpg')
-    #fig.show()
+            figure_train_loss.append(ls)
+            figure_test_loss.append(tls)
+            figure_acc.append(1.0 * (pred == l).mean())
+            t.append(step)
+    figure_train_loss_np = np.array(figure_train_loss)
+    figure_test_loss_np = np.array(figure_test_loss)
+    figure_acc_np = np.array(figure_acc)
+    t_np = np.array(t)
 
+    if not os.path.exists(".\\mylog"):
+        os.mkdir(".\\mylog")
+    np.save(".\\mylog\\{}-way-{}-shot_TrainLoss".format(FLAGS.num_classes, FLAGS.num_samples), figure_train_loss_np)
+    np.save(".\\mylog\\{}-way-{}-shot_TestLoss".format(FLAGS.num_classes, FLAGS.num_samples), figure_test_loss_np)
+    np.save(".\\mylog\\{}-way-{}-shot_acc".format(FLAGS.num_classes, FLAGS.num_samples), figure_acc_np)
+    np.save(".\\mylog\\{}-way-{}-shot_step".format(FLAGS.num_classes, FLAGS.num_samples), t_np)
 
 
