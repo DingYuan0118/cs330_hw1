@@ -98,7 +98,7 @@ with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     figure_train_loss, figure_test_loss , figure_acc , t= [], [], [], []
 
-    for step in range(1000):
+    for step in range(50000):
         i, l = data_generator.sample_batch('train', FLAGS.meta_batch_size)
         feed = {ims: i.astype(np.float32), labels: l.astype(np.float32)}
         _, ls = sess.run([optimizer_step, loss], feed)
